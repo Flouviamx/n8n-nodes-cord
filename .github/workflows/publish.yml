@@ -1,0 +1,39 @@
+# Publica en npm cada tag de versión (por ejemplo 1.0.1), con constancia de origen.
+# n8n exige publicar así los nodos que se envían a verificación.
+#
+# Configuración única en npmjs.com › n8n-nodes-cord › Settings › Trusted Publisher:
+#   GitHub Actions, owner Flouviamx, repository n8n-nodes-cord, workflow publish.yml.
+
+name: Publish
+
+on:
+  push:
+    tags:
+      - '*.*.*'
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Tag matches package version
+        run: test "$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+
+      - name: Test
+        run: npm test
+
+      - name: Publish
+        run: npm publish --provenance --access public

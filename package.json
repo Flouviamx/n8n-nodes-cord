@@ -1,0 +1,48 @@
+{
+  "name": "n8n-nodes-cord",
+  "version": "1.0.0",
+  "description": "n8n node for Cord: quotes, clients, invoices and payments in one link.",
+  "license": "MIT",
+  "homepage": "https://cordhq.app",
+  "author": {
+    "name": "Flouvia",
+    "email": "contacto@cordhq.app"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Flouviamx/n8n-nodes-cord.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Flouviamx/n8n-nodes-cord/issues"
+  },
+  "keywords": [
+    "n8n-community-node-package",
+    "cord",
+    "quotes",
+    "invoices",
+    "payments"
+  ],
+  "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/node.test.mjs"
+  },
+  "files": [
+    "index.js",
+    "lib",
+    "nodes",
+    "credentials"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "credentials/CordApi.credentials.js"
+    ],
+    "nodes": [
+      "nodes/Cord/Cord.node.js",
+      "nodes/Cord/CordTrigger.node.js"
+    ]
+  }
+}
