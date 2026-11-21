@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0
+
+- Cord node version 2, the default for new nodes: every operation returns the Cord object itself, and Search returns one item per result, with Return All and Limit.
+- Search quotes filters by quote number, client ID and status, as the Cord API does. It used to send a parameter the API ignores and returned every quote.
+- Mark a quote as paid sends the action the Cord API expects. It failed on every call before.
+- Create a task sends the due date as YYYY-MM-DD, so a date picked in n8n is accepted.
+- Version 1 keeps its output shape, so existing workflows keep working.
+
 ## 1.3.0
 
 - Cord Trigger offers the payment plan milestone event (`quote.milestone_completed`) and the Cord Workflows run events (`workflow_run.succeeded` and `workflow_run.failed`).

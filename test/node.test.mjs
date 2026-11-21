@@ -45,6 +45,38 @@ test('cada operación declara su petición', () => {
     }
 });
 
+test('la versión 2 devuelve el objeto y cada resultado de una búsqueda como elemento', () => {
+    const { description } = new Cord();
+    assert.deepEqual(description.version, [1, 2]);
+    assert.equal(description.defaultVersion, 2);
+    const operaciones = description.properties.filter((p) => p.name === 'operation');
+    for (const op of operaciones) assert.ok([1, 2].includes(op.displayOptions.show['@version'][0]), 'operación sin versión');
+    for (const op of operaciones.filter((o) => o.displayOptions.show['@version'][0] === 2)) {
+        for (const opcion of op.options) {
+            assert.deepEqual(opcion.routing.output.postReceive, [{ type: 'rootProperty', properties: { property: 'data' } }], opcion.action);
+            assert.equal(Boolean(opcion.routing.operations?.pagination), opcion.value === 'search', opcion.action);
+        }
+    }
+    for (const op of operaciones.filter((o) => o.displayOptions.show['@version'][0] === 1)) {
+        for (const opcion of op.options) assert.equal(opcion.routing.output, undefined, `la v1 de ${opcion.action} cambió su salida`);
+    }
+    for (const recurso of ['client', 'quote']) {
+        const nombres = description.properties.filter((p) => p.displayOptions?.show?.resource?.[0] === recurso && p.displayOptions.show.operation?.[0] === 'search').map((p) => p.name);
+        assert.ok(nombres.includes('returnAll') && nombres.includes('limit'), recurso);
+    }
+});
+
+test('las peticiones coinciden con lo que acepta la API v1', () => {
+    const { description } = new Cord();
+    const opciones = description.properties.filter((p) => p.name === 'operation').flatMap((p) => p.options);
+    for (const pagada of opciones.filter((o) => o.value === 'paid')) assert.deepEqual(pagada.routing.request.body, { action: 'mark_paid' });
+    const busquedaCotizacion = description.properties.filter((p) => p.displayOptions?.show?.resource?.[0] === 'quote' && p.displayOptions.show.operation?.[0] === 'search');
+    assert.ok(busquedaCotizacion.some((p) => p.routing?.send?.property === 'folio'), 'la API filtra cotizaciones por folio');
+    assert.ok(!busquedaCotizacion.some((p) => p.routing?.send?.property === 'q'), 'la API ignora q en cotizaciones');
+    const fecha = description.properties.find((p) => p.name === 'taskAdditionalFields').options.find((o) => o.name === 'due_date');
+    assert.match(fecha.routing.send.value, /slice\(0, 10\)/, 'la API pide la fecha como AAAA-MM-DD');
+});
+
 test('el disparador ofrece los mismos eventos que Cord emite', () => {
     const { description } = new CordTrigger();
     const campo = description.properties.find((p) => p.name === 'eventos');

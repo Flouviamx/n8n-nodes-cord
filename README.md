@@ -26,7 +26,7 @@ The **Cord** node can also be used as a tool by AI agents in n8n.
 
 ## Compatibility
 
-Requires n8n 1.x. Built with the official `@n8n/node-cli` and eligible for n8n Cloud verification.
+Works with n8n 1.x and 2.x. Built with the official `@n8n/node-cli` and eligible for n8n Cloud verification.
 
 ## Resources
 

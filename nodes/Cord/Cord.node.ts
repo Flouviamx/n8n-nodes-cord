@@ -1,4 +1,11 @@
-import type { INodeProperties, INodePropertyOptions, INodeType, INodeTypeDescription } from 'n8n-workflow';
+import type {
+	IHttpRequestMethods,
+	INodeProperties,
+	INodePropertyOptions,
+	INodePropertyRouting,
+	INodeType,
+	INodeTypeDescription,
+} from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
 
 export const API = 'https://cordhq.app/api/v1';
@@ -12,6 +19,82 @@ const paymentTerms: INodePropertyOptions[] = [
 	{ name: 'Net 7', value: 'net7' },
 	{ name: 'Net 90', value: 'net90' },
 	{ name: 'Upfront', value: 'contado' },
+];
+
+type Operacion = { name: string; value: string; action: string; method: IHttpRequestMethods; url: string; body?: Record<string, string>; lista?: boolean };
+
+// La versión 1 devuelve la respuesta tal cual ({ data, meta }); la 2 devuelve el objeto
+// y, en una búsqueda, un elemento por resultado, como pide la guía de nodos de n8n.
+const ruta = (o: Operacion, version: number): INodePropertyRouting => {
+	const request = { method: o.method, url: o.url, ...(o.body ? { body: o.body } : {}) };
+	if (version === 1) return { request };
+	return {
+		request,
+		...(o.lista
+			? { operations: { pagination: { type: 'offset', properties: { limitParameter: 'limit', offsetParameter: 'offset', pageSize: 100, type: 'query' } } } }
+			: {}),
+		output: { postReceive: [{ type: 'rootProperty', properties: { property: 'data' } }] },
+	};
+};
+
+const operacion = (resource: string, operaciones: Operacion[], version: number): INodeProperties => ({
+	displayName: 'Operation',
+	name: 'operation',
+	type: 'options',
+	noDataExpression: true,
+	default: 'create',
+	displayOptions: { show: { resource: [resource], '@version': [version] } },
+	options: operaciones.map((o) => ({ name: o.name, value: o.value, action: o.action, routing: ruta(o, version) })),
+});
+
+const listado = (resource: string): INodeProperties[] => [
+	{
+		displayName: 'Return All',
+		name: 'returnAll',
+		type: 'boolean',
+		default: false,
+		description: 'Whether to return all results or only up to a given limit',
+		displayOptions: { show: { resource: [resource], operation: ['search'], '@version': [2] } },
+		routing: { send: { paginate: '={{ $value }}' } },
+	},
+	{
+		displayName: 'Limit',
+		name: 'limit',
+		type: 'number',
+		typeOptions: { minValue: 1, maxValue: 200 },
+		default: 50,
+		description: 'Max number of results to return',
+		displayOptions: { show: { resource: [resource], operation: ['search'], returnAll: [false], '@version': [2] } },
+		routing: { send: { type: 'query', property: 'limit' } },
+	},
+];
+
+const operacionesCliente: Operacion[] = [
+	{ name: 'Create', value: 'create', action: 'Create a client', method: 'POST', url: '/clientes' },
+	{ name: 'Get', value: 'get', action: 'Get a client', method: 'GET', url: '=/clientes/{{$parameter.clientId}}' },
+	{ name: 'Search', value: 'search', action: 'Search clients', method: 'GET', url: '/clientes', lista: true },
+	{ name: 'Update', value: 'update', action: 'Update a client', method: 'PATCH', url: '=/clientes/{{$parameter.clientId}}' },
+];
+
+const operacionesCotizacion: Operacion[] = [
+	{ name: 'Create', value: 'create', action: 'Create a quote', method: 'POST', url: '/cotizaciones' },
+	{ name: 'Get', value: 'get', action: 'Get a quote', method: 'GET', url: '=/cotizaciones/{{$parameter.quoteId}}' },
+	{ name: 'Mark as Paid', value: 'paid', action: 'Mark a quote as paid', method: 'POST', url: '=/cotizaciones/{{$parameter.quoteId}}', body: { action: 'mark_paid' } },
+	{ name: 'Search', value: 'search', action: 'Search quotes', method: 'GET', url: '/cotizaciones', lista: true },
+	{ name: 'Send', value: 'send', action: 'Send a quote', method: 'POST', url: '=/cotizaciones/{{$parameter.quoteId}}', body: { action: 'send' } },
+];
+
+const operacionesTarea: Operacion[] = [{ name: 'Create', value: 'create', action: 'Create a task', method: 'POST', url: '/tareas' }];
+
+const estadosDeCotizacion: INodePropertyOptions[] = [
+	{ name: 'Approved', value: 'approved' },
+	{ name: 'Draft', value: 'draft' },
+	{ name: 'Expired', value: 'expired' },
+	{ name: 'Invoiced', value: 'invoiced' },
+	{ name: 'Paid', value: 'paid' },
+	{ name: 'Rejected', value: 'rejected' },
+	{ name: 'Sent', value: 'sent' },
+	{ name: 'Viewed', value: 'viewed' },
 ];
 
 const contactFields = (operation: string, required: boolean): INodeProperties[] => [
@@ -96,40 +179,8 @@ export const properties: INodeProperties[] = [
 		],
 	},
 
-	{
-		displayName: 'Operation',
-		name: 'operation',
-		type: 'options',
-		noDataExpression: true,
-		default: 'create',
-		displayOptions: { show: { resource: ['client'] } },
-		options: [
-			{
-				name: 'Create',
-				value: 'create',
-				action: 'Create a client',
-				routing: { request: { method: 'POST', url: '/clientes' } },
-			},
-			{
-				name: 'Get',
-				value: 'get',
-				action: 'Get a client',
-				routing: { request: { method: 'GET', url: '=/clientes/{{$parameter.clientId}}' } },
-			},
-			{
-				name: 'Search',
-				value: 'search',
-				action: 'Search clients',
-				routing: { request: { method: 'GET', url: '/clientes' } },
-			},
-			{
-				name: 'Update',
-				value: 'update',
-				action: 'Update a client',
-				routing: { request: { method: 'PATCH', url: '=/clientes/{{$parameter.clientId}}' } },
-			},
-		],
-	},
+	operacion('client', operacionesCliente, 1),
+	operacion('client', operacionesCliente, 2),
 	{
 		displayName: 'Client ID',
 		name: 'clientId',
@@ -149,51 +200,10 @@ export const properties: INodeProperties[] = [
 		displayOptions: { show: { resource: ['client'], operation: ['search'] } },
 		routing: { send: { type: 'query', property: 'q' } },
 	},
+	...listado('client'),
 
-	{
-		displayName: 'Operation',
-		name: 'operation',
-		type: 'options',
-		noDataExpression: true,
-		default: 'create',
-		displayOptions: { show: { resource: ['quote'] } },
-		options: [
-			{
-				name: 'Create',
-				value: 'create',
-				action: 'Create a quote',
-				routing: { request: { method: 'POST', url: '/cotizaciones' } },
-			},
-			{
-				name: 'Get',
-				value: 'get',
-				action: 'Get a quote',
-				routing: { request: { method: 'GET', url: '=/cotizaciones/{{$parameter.quoteId}}' } },
-			},
-			{
-				name: 'Mark as Paid',
-				value: 'paid',
-				action: 'Mark a quote as paid',
-				routing: {
-					request: { method: 'POST', url: '=/cotizaciones/{{$parameter.quoteId}}', body: { action: 'paid' } },
-				},
-			},
-			{
-				name: 'Search',
-				value: 'search',
-				action: 'Search quotes',
-				routing: { request: { method: 'GET', url: '/cotizaciones' } },
-			},
-			{
-				name: 'Send',
-				value: 'send',
-				action: 'Send a quote',
-				routing: {
-					request: { method: 'POST', url: '=/cotizaciones/{{$parameter.quoteId}}', body: { action: 'send' } },
-				},
-			},
-		],
-	},
+	operacion('quote', operacionesCotizacion, 1),
+	operacion('quote', operacionesCotizacion, 2),
 	{
 		displayName: 'Quote ID',
 		name: 'quoteId',
@@ -282,14 +292,41 @@ export const properties: INodeProperties[] = [
 		],
 	},
 	{
-		displayName: 'Search',
-		name: 'q',
+		displayName: 'Quote Number',
+		name: 'folio',
 		type: 'string',
 		default: '',
-		description: 'Quote number or client to look for',
+		placeholder: 'e.g. COT-00104',
+		description: 'Exact quote number. Leave empty to list every quote.',
 		displayOptions: { show: { resource: ['quote'], operation: ['search'] } },
-		routing: { send: { type: 'query', property: 'q' } },
+		routing: { send: { type: 'query', property: 'folio' } },
 	},
+	{
+		displayName: 'Filters',
+		name: 'quoteFilters',
+		type: 'collection',
+		placeholder: 'Add Filter',
+		default: {},
+		displayOptions: { show: { resource: ['quote'], operation: ['search'] } },
+		options: [
+			{
+				displayName: 'Client ID',
+				name: 'cliente_id',
+				type: 'string',
+				default: '',
+				routing: { send: { type: 'query', property: 'cliente_id' } },
+			},
+			{
+				displayName: 'Status',
+				name: 'status',
+				type: 'options',
+				options: estadosDeCotizacion,
+				default: 'sent',
+				routing: { send: { type: 'query', property: 'status' } },
+			},
+		],
+	},
+	...listado('quote'),
 	{
 		displayName: 'Payment Method',
 		name: 'payment_method',
@@ -300,22 +337,8 @@ export const properties: INodeProperties[] = [
 		routing: { send: { type: 'body', property: 'payment_method' } },
 	},
 
-	{
-		displayName: 'Operation',
-		name: 'operation',
-		type: 'options',
-		noDataExpression: true,
-		default: 'create',
-		displayOptions: { show: { resource: ['task'] } },
-		options: [
-			{
-				name: 'Create',
-				value: 'create',
-				action: 'Create a task',
-				routing: { request: { method: 'POST', url: '/tareas' } },
-			},
-		],
-	},
+	operacion('task', operacionesTarea, 1),
+	operacion('task', operacionesTarea, 2),
 	{
 		displayName: 'Title',
 		name: 'titulo',
@@ -339,7 +362,7 @@ export const properties: INodeProperties[] = [
 				type: 'dateTime',
 				default: '',
 				description: 'Only the date is used',
-				routing: { send: { type: 'body', property: 'due_date' } },
+				routing: { send: { type: 'body', property: 'due_date', value: '={{ $value ? String($value).slice(0, 10) : $value }}' } },
 			},
 			{
 				displayName: 'Quote ID',
@@ -358,7 +381,8 @@ export class Cord implements INodeType {
 		name: 'cord',
 		icon: { light: 'file:cord.svg', dark: 'file:cord.dark.svg' },
 		group: ['transform'],
-		version: 1,
+		version: [1, 2],
+		defaultVersion: 2,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Create and manage clients, quotes and tasks in Cord',
 		defaults: { name: 'Cord' },
