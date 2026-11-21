@@ -68,6 +68,11 @@ export const EVENTS = [
 		"category": "Payments"
 	},
 	{
+		"key": "quote.milestone_completed",
+		"label": "Payment plan milestone completed",
+		"category": "Payments"
+	},
+	{
 		"key": "payment.failed",
 		"label": "Recurring charge failed",
 		"category": "Payments"
@@ -206,6 +211,16 @@ export const EVENTS = [
 		"key": "account.updated",
 		"label": "Payments account updated",
 		"category": "Payments"
+	},
+	{
+		"key": "workflow_run.succeeded",
+		"label": "Workflow run completed",
+		"category": "Workflows"
+	},
+	{
+		"key": "workflow_run.failed",
+		"label": "Workflow run failed or needs attention",
+		"category": "Workflows"
 	}
 ];
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0
+
+- Cord Trigger offers the payment plan milestone event (`quote.milestone_completed`) and the Cord Workflows run events (`workflow_run.succeeded` and `workflow_run.failed`).
+- New Cord icon, in light and dark.
+
 ## 1.2.0
 
 - Payment terms now include Net 7, Net 15, Net 45 and Net 90 alongside Upfront, Net 30 and Net 60.
