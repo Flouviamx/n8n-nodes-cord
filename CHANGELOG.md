@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0
+
+- Cord Trigger offers the retainer events: a payment charged (`retainer.charged`), a payment not charged (`retainer.charge_failed`) and a retainer canceled (`retainer.canceled`).
+
 ## 1.4.0
 
 - Cord node version 2, the default for new nodes: every operation returns the Cord object itself, and Search returns one item per result, with Return All and Limit.

@@ -78,6 +78,21 @@ export const EVENTS = [
 		"category": "Payments"
 	},
 	{
+		"key": "retainer.charged",
+		"label": "Retainer payment charged",
+		"category": "Payments"
+	},
+	{
+		"key": "retainer.charge_failed",
+		"label": "Retainer payment not charged",
+		"category": "Payments"
+	},
+	{
+		"key": "retainer.canceled",
+		"label": "Retainer canceled",
+		"category": "Payments"
+	},
+	{
 		"key": "invoice.issued",
 		"label": "Quote invoiced",
 		"category": "Invoices"
