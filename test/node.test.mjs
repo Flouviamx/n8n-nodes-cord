@@ -9,106 +9,106 @@ const { Cord } = require('../dist/nodes/Cord/Cord.node.js');
 const { CordTrigger, signatureMatches } = require('../dist/nodes/Cord/CordTrigger.node.js');
 const { CordApi } = require('../dist/credentials/CordApi.credentials.js');
 const { EVENTS, EVENT_KEYS } = require('../dist/nodes/Cord/events.js');
-// El catálogo canónico solo existe dentro del repo de Cord; en el repo público del nodo se compara contra la copia.
-const CANONICO = new URL('../../zapier/lib/events.js', import.meta.url);
-const canonicos = existsSync(CANONICO) ? require(CANONICO.pathname) : { EVENTS, EVENT_KEYS };
+// The canonical catalog only exists inside the Cord repository; the public repository of the node compares against the copy.
+const CANONICAL = new URL('../../zapier/lib/events.js', import.meta.url);
+const canonical = existsSync(CANONICAL) ? require(CANONICAL.pathname) : { EVENTS, EVENT_KEYS };
 const pkg = require('../package.json');
 
-test('el paquete declara los archivos que n8n va a cargar', () => {
-    for (const ruta of [...pkg.n8n.nodes, ...pkg.n8n.credentials]) {
-        assert.doesNotThrow(() => require(`../${ruta}`), `n8n no podría cargar ${ruta}`);
+test('the package declares the files n8n loads', () => {
+    for (const file of [...pkg.n8n.nodes, ...pkg.n8n.credentials]) {
+        assert.doesNotThrow(() => require(`../${file}`), `n8n could not load ${file}`);
     }
 });
 
-test('la copia de eventos no se separa del catálogo canónico', () => {
-    assert.deepEqual(EVENTS, canonicos.EVENTS, 'corre `npm run sync` en integrations/n8n');
-    assert.equal(EVENT_KEYS.length, canonicos.EVENT_KEYS.length);
+test('the event copy matches the canonical catalog', () => {
+    assert.deepEqual(EVENTS, canonical.EVENTS, 'run `npm run sync` in integrations/n8n');
+    assert.equal(EVENT_KEYS.length, canonical.EVENT_KEYS.length);
 });
 
-test('el nodo de acción pega solo a la API pública de Cord', () => {
+test('the action node only calls the public Cord API', () => {
     const { description } = new Cord();
     assert.equal(description.requestDefaults.baseURL, 'https://cordhq.app/api/v1');
     assert.deepEqual(description.credentials, [{ name: 'cordApi', required: true }]);
-    const rutas = JSON.stringify(description.properties).match(/"url":"[^"]+"/g) ?? [];
-    for (const ruta of rutas) assert.ok(!ruta.includes('http'), `ruta absoluta en ${ruta}`);
+    const urls = JSON.stringify(description.properties).match(/"url":"[^"]+"/g) ?? [];
+    for (const url of urls) assert.ok(!url.includes('http'), `absolute URL in ${url}`);
 });
 
-test('cada operación declara su petición', () => {
+test('every operation declares its request', () => {
     const { description } = new Cord();
-    const operaciones = description.properties.filter((p) => p.name === 'operation');
-    assert.ok(operaciones.length >= 3);
-    for (const op of operaciones) {
-        for (const opcion of op.options) {
-            assert.ok(opcion.routing?.request?.method, `${opcion.value} sin método`);
-            assert.ok(opcion.routing?.request?.url, `${opcion.value} sin url`);
+    const operations = description.properties.filter((p) => p.name === 'operation');
+    assert.ok(operations.length >= 3);
+    for (const op of operations) {
+        for (const option of op.options) {
+            assert.ok(option.routing?.request?.method, `${option.value} has no method`);
+            assert.ok(option.routing?.request?.url, `${option.value} has no URL`);
         }
     }
 });
 
-test('la versión 2 devuelve el objeto y cada resultado de una búsqueda como elemento', () => {
+test('version 2 returns the object, and one item per search result', () => {
     const { description } = new Cord();
     assert.deepEqual(description.version, [1, 2]);
     assert.equal(description.defaultVersion, 2);
-    const operaciones = description.properties.filter((p) => p.name === 'operation');
-    for (const op of operaciones) assert.ok([1, 2].includes(op.displayOptions.show['@version'][0]), 'operación sin versión');
-    for (const op of operaciones.filter((o) => o.displayOptions.show['@version'][0] === 2)) {
-        for (const opcion of op.options) {
-            assert.deepEqual(opcion.routing.output.postReceive, [{ type: 'rootProperty', properties: { property: 'data' } }], opcion.action);
-            assert.equal(Boolean(opcion.routing.operations?.pagination), opcion.value === 'search', opcion.action);
+    const operations = description.properties.filter((p) => p.name === 'operation');
+    for (const op of operations) assert.ok([1, 2].includes(op.displayOptions.show['@version'][0]), 'operation without a version');
+    for (const op of operations.filter((o) => o.displayOptions.show['@version'][0] === 2)) {
+        for (const option of op.options) {
+            assert.deepEqual(option.routing.output.postReceive, [{ type: 'rootProperty', properties: { property: 'data' } }], option.action);
+            assert.equal(Boolean(option.routing.operations?.pagination), option.value === 'search', option.action);
         }
     }
-    for (const op of operaciones.filter((o) => o.displayOptions.show['@version'][0] === 1)) {
-        for (const opcion of op.options) assert.equal(opcion.routing.output, undefined, `la v1 de ${opcion.action} cambió su salida`);
+    for (const op of operations.filter((o) => o.displayOptions.show['@version'][0] === 1)) {
+        for (const option of op.options) assert.equal(option.routing.output, undefined, `version 1 of ${option.action} changed its output`);
     }
-    for (const recurso of ['client', 'quote']) {
-        const nombres = description.properties.filter((p) => p.displayOptions?.show?.resource?.[0] === recurso && p.displayOptions.show.operation?.[0] === 'search').map((p) => p.name);
-        assert.ok(nombres.includes('returnAll') && nombres.includes('limit'), recurso);
+    for (const resource of ['client', 'quote']) {
+        const names = description.properties.filter((p) => p.displayOptions?.show?.resource?.[0] === resource && p.displayOptions.show.operation?.[0] === 'search').map((p) => p.name);
+        assert.ok(names.includes('returnAll') && names.includes('limit'), resource);
     }
 });
 
-test('las peticiones coinciden con lo que acepta la API v1', () => {
+test('requests match what the API v1 accepts', () => {
     const { description } = new Cord();
-    const opciones = description.properties.filter((p) => p.name === 'operation').flatMap((p) => p.options);
-    for (const pagada of opciones.filter((o) => o.value === 'paid')) assert.deepEqual(pagada.routing.request.body, { action: 'mark_paid' });
-    const busquedaCotizacion = description.properties.filter((p) => p.displayOptions?.show?.resource?.[0] === 'quote' && p.displayOptions.show.operation?.[0] === 'search');
-    assert.ok(busquedaCotizacion.some((p) => p.routing?.send?.property === 'folio'), 'la API filtra cotizaciones por folio');
-    assert.ok(!busquedaCotizacion.some((p) => p.routing?.send?.property === 'q'), 'la API ignora q en cotizaciones');
-    const fecha = description.properties.find((p) => p.name === 'taskAdditionalFields').options.find((o) => o.name === 'due_date');
-    assert.match(fecha.routing.send.value, /slice\(0, 10\)/, 'la API pide la fecha como AAAA-MM-DD');
+    const options = description.properties.filter((p) => p.name === 'operation').flatMap((p) => p.options);
+    for (const paid of options.filter((o) => o.value === 'paid')) assert.deepEqual(paid.routing.request.body, { action: 'mark_paid' });
+    const quoteSearch = description.properties.filter((p) => p.displayOptions?.show?.resource?.[0] === 'quote' && p.displayOptions.show.operation?.[0] === 'search');
+    assert.ok(quoteSearch.some((p) => p.routing?.send?.property === 'folio'), 'the API filters quotes by quote number');
+    assert.ok(!quoteSearch.some((p) => p.routing?.send?.property === 'q'), 'the API ignores q on quotes');
+    const dueDate = description.properties.find((p) => p.name === 'taskAdditionalFields').options.find((o) => o.name === 'due_date');
+    assert.match(dueDate.routing.send.value, /slice\(0, 10\)/, 'the API expects the date as YYYY-MM-DD');
 });
 
-test('el disparador ofrece los mismos eventos que Cord emite', () => {
+test('the trigger offers the same events Cord emits', () => {
     const { description } = new CordTrigger();
-    const campo = description.properties.find((p) => p.name === 'eventos');
-    assert.deepEqual(campo.options.map((o) => o.value), canonicos.EVENT_KEYS);
+    const field = description.properties.find((p) => p.name === 'eventos');
+    assert.deepEqual(field.options.map((o) => o.value), canonical.EVENT_KEYS);
     assert.equal(description.webhooks[0].httpMethod, 'POST');
 });
 
-test('la credencial guarda la llave como contraseña y se prueba contra /me', () => {
+test('the credential stores the key as a password and is tested against /me', () => {
     const cred = new CordApi();
     assert.equal(cred.properties[0].typeOptions.password, true);
     assert.equal(cred.test.request.url, '/me');
     assert.match(cred.authenticate.properties.headers.Authorization, /\{\{\$credentials\.apiKey\}\}/);
 });
 
-const firmar = (secret, ts, body) => crypto.createHmac('sha256', secret).update(`${ts}.${body}`).digest('hex');
+const sign = (secret, ts, body) => crypto.createHmac('sha256', secret).update(`${ts}.${body}`).digest('hex');
 
-test('la firma se acepta solo si cuadra, está fresca y no viene vacía', () => {
+test('a signature is accepted only when it matches, is recent and is not empty', () => {
     const body = JSON.stringify({ event: 'quote.approved' });
     const ts = Math.floor(Date.now() / 1000);
-    assert.equal(signatureMatches(body, `t=${ts},v1=${firmar('s3cret', ts, body)}`, 's3cret'), true);
-    assert.equal(signatureMatches(body, `t=${ts},v1=${firmar('otro', ts, body)}`, 's3cret'), false);
-    assert.equal(signatureMatches(body, `t=${ts},v1=${firmar('s3cret', ts, body)}`, ''), false);
-    assert.equal(signatureMatches(body + ' ', `t=${ts},v1=${firmar('s3cret', ts, body)}`, 's3cret'), false);
-    const viejo = ts - 3600;
-    assert.equal(signatureMatches(body, `t=${viejo},v1=${firmar('s3cret', viejo, body)}`, 's3cret'), false, 'replay de una entrega vieja');
+    assert.equal(signatureMatches(body, `t=${ts},v1=${sign('s3cret', ts, body)}`, 's3cret'), true);
+    assert.equal(signatureMatches(body, `t=${ts},v1=${sign('other', ts, body)}`, 's3cret'), false);
+    assert.equal(signatureMatches(body, `t=${ts},v1=${sign('s3cret', ts, body)}`, ''), false);
+    assert.equal(signatureMatches(body + ' ', `t=${ts},v1=${sign('s3cret', ts, body)}`, 's3cret'), false);
+    const old = ts - 3600;
+    assert.equal(signatureMatches(body, `t=${old},v1=${sign('s3cret', old, body)}`, 's3cret'), false, 'replay of an old delivery');
 });
 
-test('durante una rotación de secreto basta con que una de las dos firmas cuadre', () => {
+test('during a secret rotation one matching signature is enough', () => {
     const body = JSON.stringify({ event: 'quote.paid' });
     const ts = Math.floor(Date.now() / 1000);
-    const header = `t=${ts},v1=${firmar('nuevo', ts, body)},v1=${firmar('viejo', ts, body)}`;
-    assert.equal(signatureMatches(body, header, 'nuevo'), true);
-    assert.equal(signatureMatches(body, header, 'viejo'), true);
-    assert.equal(signatureMatches(body, header, 'ajeno'), false);
+    const header = `t=${ts},v1=${sign('new', ts, body)},v1=${sign('old', ts, body)}`;
+    assert.equal(signatureMatches(body, header, 'new'), true);
+    assert.equal(signatureMatches(body, header, 'old'), true);
+    assert.equal(signatureMatches(body, header, 'other'), false);
 });

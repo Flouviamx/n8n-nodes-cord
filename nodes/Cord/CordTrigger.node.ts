@@ -97,11 +97,11 @@ export class CordTrigger implements INodeType {
 			async create(this: IHookFunctions): Promise<boolean> {
 				const data = this.getWorkflowStaticData('node');
 				const url = this.getNodeWebhookUrl('default');
-				const eventos = this.getNodeParameter('eventos') as string[];
+				const selected = this.getNodeParameter('eventos') as string[];
 				const response = (await this.helpers.httpRequestWithAuthentication.call(this, 'cordApi', {
 					method: 'POST',
 					url: `${API}/webhooks`,
-					body: { url, eventos },
+					body: { url, eventos: selected },
 					json: true,
 				})) as IDataObject;
 				const created = (response?.data ?? response) as IDataObject | undefined;
@@ -137,7 +137,7 @@ export class CordTrigger implements INodeType {
 		};
 		const data = this.getWorkflowStaticData('node');
 		const verify = this.getNodeParameter('verificar', true) as boolean;
-		const eventos = this.getNodeParameter('eventos', []) as string[];
+		const selected = this.getNodeParameter('eventos', []) as string[];
 
 		if (verify && data.secret) {
 			const header = req.headers['x-cord-signature-v1'];
@@ -156,7 +156,7 @@ export class CordTrigger implements INodeType {
 
 		const body = (req.body ?? {}) as IDataObject;
 		// Cord already filters by subscription; this also covers events removed from the node without recreating the webhook.
-		if (eventos.length && typeof body.event === 'string' && !eventos.includes(body.event)) {
+		if (selected.length && typeof body.event === 'string' && !selected.includes(body.event)) {
 			return { workflowData: [] };
 		}
 

@@ -24,14 +24,70 @@ The node uses a **Cord API** credential with a secret API key.
 
 The **Cord** node can also be used as a tool by AI agents in n8n.
 
+## Usage examples
+
+### Create a client and send them a quote
+
+1. Add a **Cord** node and set **Resource** to *Client* and **Operation** to *Create*.
+   - **Company**: `Acme Corp`
+   - **Additional Fields › Email**: `billing@acme.com`
+   - **Additional Fields › Country Code**: `US`
+2. Add a second **Cord** node and set **Resource** to *Quote* and **Operation** to *Create*.
+   - **Client ID**: `{{ $json.id }}` (the client created by the first node)
+   - **Items › Add Item**: Description `Website redesign`, Quantity `1`, Unit Price `4500`
+   - **Additional Fields › Currency**: `USD`
+   - **Additional Fields › Valid For (Days)**: `30`
+   - **Additional Fields › Send Now**: on
+3. Run the workflow. The second node returns the quote, including:
+
+```json
+{
+  "id": "6f1c2a9e-4b7d-4e2a-9c51-0d3b8f7a1e64",
+  "folio": "Q-00104",
+  "status": "sent",
+  "moneda": "USD",
+  "total": 4500,
+  "link_publico": "https://cordhq.app/q/..."
+}
+```
+
+`link_publico` is the link the client opens to review, approve and pay the quote.
+
+### Create a follow-up task when a client approves a quote
+
+1. Add a **Cord Trigger** node and select the event **Quotes: Quote approved**.
+2. Add a **Cord** node and set **Resource** to *Task* and **Operation** to *Create*.
+   - **Title**: `Kick off {{ $json.data.folio }} with {{ $json.data.cliente }}`
+   - **Additional Fields › Quote ID**: `{{ $json.data.id }}`
+   - **Additional Fields › Due Date**: `{{ $now.plus(1, 'day') }}`
+3. Activate the workflow. Cord Trigger registers its webhook in Cord, and each approval reaches the workflow as:
+
+```json
+{
+  "event": "quote.approved",
+  "data": {
+    "id": "6f1c2a9e-4b7d-4e2a-9c51-0d3b8f7a1e64",
+    "folio": "Q-00104",
+    "status": "approved",
+    "moneda": "USD",
+    "total": 4500,
+    "cliente": "Acme Corp",
+    "cliente_id": "2d8e5b10-7c3f-4a9d-b6e1-93f0c4a2d785"
+  }
+}
+```
+
+The task appears in Cord under **Tasks**, linked to the quote.
+
 ## Compatibility
 
 Works with n8n 1.x and 2.x. Built with the official `@n8n/node-cli` and eligible for n8n Cloud verification.
 
 ## Resources
 
-- [Connect Cord with n8n](https://cordhq.app/en/support/conectar-n8n)
-- [Cord API documentation](https://cordhq.app/en/docs)
+- [Cord for n8n](https://cordhq.app/en/integrations/n8n)
+- [Connect Cord with n8n](https://cordhq.app/en/support/connect-n8n)
+- [Cord API documentation](https://docs.cordhq.app/en/docs/developers/get-started/overview)
 
 ## Development
 

@@ -10,7 +10,7 @@ import { NodeConnectionTypes } from 'n8n-workflow';
 
 export const API = 'https://cordhq.app/api/v1';
 
-// `net<N>` = N días de crédito. Misma lista que src/lib/payment-terms.ts de Cord.
+// `net<N>` = N days of credit. Same list as Cord's payment terms.
 const paymentTerms: INodePropertyOptions[] = [
 	{ name: 'Net 15', value: 'net15' },
 	{ name: 'Net 30', value: 'net30' },
@@ -21,33 +21,33 @@ const paymentTerms: INodePropertyOptions[] = [
 	{ name: 'Upfront', value: 'contado' },
 ];
 
-type Operacion = { name: string; value: string; action: string; method: IHttpRequestMethods; url: string; body?: Record<string, string>; lista?: boolean };
+type Operation = { name: string; value: string; action: string; method: IHttpRequestMethods; url: string; body?: Record<string, string>; list?: boolean };
 
-// La versión 1 devuelve la respuesta tal cual ({ data, meta }); la 2 devuelve el objeto
-// y, en una búsqueda, un elemento por resultado, como pide la guía de nodos de n8n.
-const ruta = (o: Operacion, version: number): INodePropertyRouting => {
+// Version 1 returns the response as is ({ data, meta }). Version 2 returns the object itself
+// and, in a search, one item per result, as the n8n node guidelines ask.
+const routingFor = (o: Operation, version: number): INodePropertyRouting => {
 	const request = { method: o.method, url: o.url, ...(o.body ? { body: o.body } : {}) };
 	if (version === 1) return { request };
 	return {
 		request,
-		...(o.lista
+		...(o.list
 			? { operations: { pagination: { type: 'offset', properties: { limitParameter: 'limit', offsetParameter: 'offset', pageSize: 100, type: 'query' } } } }
 			: {}),
 		output: { postReceive: [{ type: 'rootProperty', properties: { property: 'data' } }] },
 	};
 };
 
-const operacion = (resource: string, operaciones: Operacion[], version: number): INodeProperties => ({
+const operationProperty = (resource: string, operations: Operation[], version: number): INodeProperties => ({
 	displayName: 'Operation',
 	name: 'operation',
 	type: 'options',
 	noDataExpression: true,
 	default: 'create',
 	displayOptions: { show: { resource: [resource], '@version': [version] } },
-	options: operaciones.map((o) => ({ name: o.name, value: o.value, action: o.action, routing: ruta(o, version) })),
+	options: operations.map((o) => ({ name: o.name, value: o.value, action: o.action, routing: routingFor(o, version) })),
 });
 
-const listado = (resource: string): INodeProperties[] => [
+const listFields = (resource: string): INodeProperties[] => [
 	{
 		displayName: 'Return All',
 		name: 'returnAll',
@@ -69,24 +69,24 @@ const listado = (resource: string): INodeProperties[] => [
 	},
 ];
 
-const operacionesCliente: Operacion[] = [
+const clientOperations: Operation[] = [
 	{ name: 'Create', value: 'create', action: 'Create a client', method: 'POST', url: '/clientes' },
 	{ name: 'Get', value: 'get', action: 'Get a client', method: 'GET', url: '=/clientes/{{$parameter.clientId}}' },
-	{ name: 'Search', value: 'search', action: 'Search clients', method: 'GET', url: '/clientes', lista: true },
+	{ name: 'Search', value: 'search', action: 'Search clients', method: 'GET', url: '/clientes', list: true },
 	{ name: 'Update', value: 'update', action: 'Update a client', method: 'PATCH', url: '=/clientes/{{$parameter.clientId}}' },
 ];
 
-const operacionesCotizacion: Operacion[] = [
+const quoteOperations: Operation[] = [
 	{ name: 'Create', value: 'create', action: 'Create a quote', method: 'POST', url: '/cotizaciones' },
 	{ name: 'Get', value: 'get', action: 'Get a quote', method: 'GET', url: '=/cotizaciones/{{$parameter.quoteId}}' },
 	{ name: 'Mark as Paid', value: 'paid', action: 'Mark a quote as paid', method: 'POST', url: '=/cotizaciones/{{$parameter.quoteId}}', body: { action: 'mark_paid' } },
-	{ name: 'Search', value: 'search', action: 'Search quotes', method: 'GET', url: '/cotizaciones', lista: true },
+	{ name: 'Search', value: 'search', action: 'Search quotes', method: 'GET', url: '/cotizaciones', list: true },
 	{ name: 'Send', value: 'send', action: 'Send a quote', method: 'POST', url: '=/cotizaciones/{{$parameter.quoteId}}', body: { action: 'send' } },
 ];
 
-const operacionesTarea: Operacion[] = [{ name: 'Create', value: 'create', action: 'Create a task', method: 'POST', url: '/tareas' }];
+const taskOperations: Operation[] = [{ name: 'Create', value: 'create', action: 'Create a task', method: 'POST', url: '/tareas' }];
 
-const estadosDeCotizacion: INodePropertyOptions[] = [
+const quoteStatuses: INodePropertyOptions[] = [
 	{ name: 'Approved', value: 'approved' },
 	{ name: 'Draft', value: 'draft' },
 	{ name: 'Expired', value: 'expired' },
@@ -179,8 +179,8 @@ export const properties: INodeProperties[] = [
 		],
 	},
 
-	operacion('client', operacionesCliente, 1),
-	operacion('client', operacionesCliente, 2),
+	operationProperty('client', clientOperations, 1),
+	operationProperty('client', clientOperations, 2),
 	{
 		displayName: 'Client ID',
 		name: 'clientId',
@@ -200,10 +200,10 @@ export const properties: INodeProperties[] = [
 		displayOptions: { show: { resource: ['client'], operation: ['search'] } },
 		routing: { send: { type: 'query', property: 'q' } },
 	},
-	...listado('client'),
+	...listFields('client'),
 
-	operacion('quote', operacionesCotizacion, 1),
-	operacion('quote', operacionesCotizacion, 2),
+	operationProperty('quote', quoteOperations, 1),
+	operationProperty('quote', quoteOperations, 2),
 	{
 		displayName: 'Quote ID',
 		name: 'quoteId',
@@ -320,13 +320,13 @@ export const properties: INodeProperties[] = [
 				displayName: 'Status',
 				name: 'status',
 				type: 'options',
-				options: estadosDeCotizacion,
+				options: quoteStatuses,
 				default: 'sent',
 				routing: { send: { type: 'query', property: 'status' } },
 			},
 		],
 	},
-	...listado('quote'),
+	...listFields('quote'),
 	{
 		displayName: 'Payment Method',
 		name: 'payment_method',
@@ -337,8 +337,8 @@ export const properties: INodeProperties[] = [
 		routing: { send: { type: 'body', property: 'payment_method' } },
 	},
 
-	operacion('task', operacionesTarea, 1),
-	operacion('task', operacionesTarea, 2),
+	operationProperty('task', taskOperations, 1),
+	operationProperty('task', taskOperations, 2),
 	{
 		displayName: 'Title',
 		name: 'titulo',

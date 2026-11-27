@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.1
+
+- Code comments, test names and script messages are in English.
+- The README has two step-by-step usage examples: creating a client and sending them a quote, and creating a follow-up task when a client approves a quote.
+- The node metadata declares node version 2.0, and the documentation links point to the English pages.
+
 ## 1.5.0
 
 - Cord Trigger offers the retainer events: a payment charged (`retainer.charged`), a payment not charged (`retainer.charge_failed`) and a retainer canceled (`retainer.canceled`).

@@ -13,7 +13,7 @@ export class CordApi implements ICredentialType {
 
 	icon: Icon = { light: 'file:../nodes/Cord/cord.svg', dark: 'file:../nodes/Cord/cord.dark.svg' };
 
-	documentationUrl = 'https://cordhq.app/en/support/conectar-n8n';
+	documentationUrl = 'https://cordhq.app/en/support/connect-n8n';
 
 	properties: INodeProperties[] = [
 		{
